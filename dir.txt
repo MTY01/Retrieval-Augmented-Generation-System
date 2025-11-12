@@ -1,0 +1,43 @@
+This is a dir generate by AI, a reference for expand.
+
+project_root/
+│
+├── data/                         # already exists (train/val/test/collection)
+│
+├── code/                         # required submission folder
+│   ├── __init__.py
+│   ├── main.py                   # entry point: runs end-to-end RAG pipeline
+│   │
+│   ├── retrieval/                # retrieval methods
+│   │   ├── __init__.py
+│   │   ├── bm25_retriever.py
+│   │   ├── dense_retriever.py
+│   │   └── utils.py
+│   │
+│   ├── generation/               # generation module
+│   │   ├── __init__.py
+│   │   ├── rag_generator.py
+│   │   └── prompt_templates.py
+│   │
+│   ├── evaluation/               # evaluation scripts
+│   │   ├── __init__.py
+│   │   ├── metrics.py            # EM, nDCG@10
+│   │   └── evaluate.py
+│   │
+│   ├── interface/                # user interface
+│   │   ├── __init__.py
+│   │   ├── cli.py                # terminal interface
+│   │   └── web.py                # optional web UI
+│   │
+│   ├── preprocessing/            # data loading and cleaning
+│   │   ├── __init__.py
+│   │   └── dataset_loader.py
+│   │
+│   └── utils/                    # shared helpers
+│       ├── __init__.py
+│       ├── config.py
+│       └── logging_utils.py
+│
+├── requirements.txt              # dependencies
+├── README.md                     # instructions for running system
+└── test_predict.jsonl            # final output for submission
