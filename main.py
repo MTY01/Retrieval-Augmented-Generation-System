@@ -21,11 +21,13 @@ def main():
     docs = load_collection("data/collection.jsonl")
 
     # Build retriever
-    retriever = DenseRetriever(model_name="intfloat/e5-base-v2")
+    retriever = DenseRetriever(model_name="BAAI/bge-m3")
 
     time_build_retriever = time.time()
     print("Start to build doc index!")
+
     retriever.build_index(docs)
+
     print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
 
     # Initialize generator
@@ -36,6 +38,7 @@ def main():
 
     time_generate_answer = time.time()
     print("Start to generate answer!")
+
     answer, doc = rag_answer(question, retriever, generator, top_k=5)
 
     print(f"Time spent in generator: {time.time() - time_generate_answer:.2f} s")
