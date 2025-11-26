@@ -61,7 +61,7 @@ def write_rag_answers(
     retriever_e5,
     retriever_qwen,
     generator,
-    top_k: int = 5,
+    top_k: int = 10,
     candidate_k: int = 20
 ):
     """
@@ -95,7 +95,7 @@ def write_rag_answers(
             answer = generator.generate(query, top_docs)
 
             # Step 5: supporting_ids = 前两个文档的 id
-            supporting_ids = [doc["id"] for doc, _ in reranked[:2]]
+            supporting_ids = [[doc["id"], score] for doc, score in reranked[:10]]
 
             # Step 6: 写入 JSONL
             out_obj = {
@@ -131,7 +131,7 @@ def main():
     # print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
 
     # Build retriever for E5
-    # retriever = DenseRetriever(model_name="intfloat/e5-base-v2")
+    # retriever = DenseRetriever(model_name="intfloat/e5-large-v2")
     # time_build_retriever = time.time()
     # print("Start to build doc index!")
     # retriever.build_index(docs)
@@ -166,7 +166,7 @@ def main():
     
     
     # -------------------------- Test combine model --------------------------
-    # retriever_e5 = DenseRetriever(model_name="intfloat/e5-base-v2")
+    # retriever_e5 = DenseRetriever(model_name="intfloat/e5-large-v2")
     
     # print("Start to build doc index e5!")
     # retriever_e5.build_index(docs)
@@ -184,7 +184,7 @@ def main():
 
 
     # ------------------------ Output jsonl file ------------------------
-    retriever_e5 = DenseRetriever(model_name="intfloat/e5-base-v2")
+    retriever_e5 = DenseRetriever(model_name="intfloat/e5-large-v2")
     
     print("Start to build doc index e5!")
     retriever_e5.build_index(docs)

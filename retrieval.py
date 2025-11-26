@@ -102,13 +102,13 @@ class StaticRetriever:
 
 # =====================================
 # Dense Retriever Module
-# Model: E5-base-v2
+# Model: E5-large-v2
 # =====================================
 
 class DenseRetriever:
-    def __init__(self, model_name="intfloat/e5-base-v2", use_gpu=True):
+    def __init__(self, model_name="intfloat/e5-large-v2", use_gpu=True):
         """
-        Dense retriever using SentenceTransformer + FAISS (E5-base-v2).
+        Dense retriever using SentenceTransformer + FAISS (E5-large-v2).
         """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Device: {self.device}")
@@ -118,7 +118,7 @@ class DenseRetriever:
         self.embeddings = None
         self.use_gpu = use_gpu
 
-    def build_index(self, documents, batch_size=512):
+    def build_index(self, documents, batch_size=256):
         """
         Build FAISS index from documents with batch encoding.
         Adds 'passage:' prefix for E5.
@@ -173,7 +173,7 @@ class DenseRetriever:
 class DenseRetrieverIns:
     def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-0.6B", 
                  show_progress_bar: bool = True, use_gpu: bool = True, 
-                 use_fp16: bool = True):
+                 use_fp16: bool = False):
         device = "cuda" if use_gpu else "cpu"
         dtype = torch.float16 if use_fp16 else torch.float32
         
