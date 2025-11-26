@@ -1,10 +1,11 @@
-from dataset_loader import load_collection
+from dataset_loader import load_collection, load_split
 from retrieval import SparseRetriever, StaticRetriever, DenseRetriever, DenseRetrieverIns
 from generation import RAGGenerator
-
+import json
 import time
 
 
+# This is for testing single model
 def rag_answer(question: str, retriever: DenseRetriever, generator: RAGGenerator, top_k: int = 5):
     results = retriever.retrieve(question, top_k=top_k)
     contexts = [doc for doc, _ in results]
@@ -13,6 +14,7 @@ def rag_answer(question: str, retriever: DenseRetriever, generator: RAGGenerator
     # return docs for inspection/eval
     return answer, results
 
+# This is for testing combine model
 def rag_answer_dual(
     question: str,
     retriever_e5: DenseRetriever,
@@ -29,25 +31,92 @@ def rag_answer_dual(
     """
 
     # Step 1: E5 initial recall
+    time_e5_retrieve = time.time()
+    print("Start to retrieve doc index")
+
     candidates = retriever_e5.retrieve(question, top_k=candidate_k)
+
+    print(f"Time spent in e5 retrieve: {time.time() - time_e5_retrieve:.2f} s")
+
+    time_qwen_rerank = time.time()
+    print("Start to rerank doc index")
 
     # Step 2: Qwen3 rerank
     reranked = retriever_qwen.rerank(question, candidates)
 
-    # Step 3: Select top_k docs
-    top_docs = [doc for doc, _ in reranked[:top_k]]
+    print(f"Time spent in qwen rerank: {time.time() - time_qwen_rerank:.2f} s")
 
+    # Step 3: Select top_k docs
+    top_docs = [doc["text"] for doc, _ in reranked[:top_k]]
+
+    print("Start to generate answer!")
     # Step 4: Generate answer
     answer = generator.generate(question, top_docs)
 
     return answer, reranked[:top_k]
 
+def write_rag_answers(
+    input_path: str,
+    output_path: str,
+    retriever_e5,
+    retriever_qwen,
+    generator,
+    top_k: int = 5,
+    candidate_k: int = 20
+):
+    """
+    Generate RAG answers for a dataset split and write to JSONL.
+    - input_path: train/validation/test split file (jsonl)
+    - output_path: output jsonl file
+    - retriever_e5: E5 retriever (for initial recall)
+    - retriever_qwen: Qwen3 retriever (for rerank)
+    - generator: RAGGenerator
+    - top_k: number of final docs used for answer generation
+    - candidate_k: number of docs recalled by E5 before rerank
+    """
+
+    examples = load_split(input_path)
+
+    with open(output_path, "w", encoding="utf-8") as fout:
+        for ex in examples:
+            qid = ex["id"]
+            query = ex["text"]
+
+            # Step 1: E5 initial recall
+            candidates = retriever_e5.retrieve(query, top_k=candidate_k)
+
+            # Step 2: Qwen rerank
+            reranked = retriever_qwen.rerank(query, candidates)
+
+            # Step 3: Select top_k docs
+            top_docs = [doc["text"] for doc, _ in reranked[:top_k]]
+
+            # Step 4: Generate answer
+            answer = generator.generate(query, top_docs)
+
+            # Step 5: supporting_ids = 前两个文档的 id
+            supporting_ids = [doc["id"] for doc, _ in reranked[:2]]
+
+            # Step 6: 写入 JSONL
+            out_obj = {
+                "id": qid,
+                "text": query,
+                "answer": answer,
+                "retrieved_docs": supporting_ids
+            }
+            fout.write(json.dumps(out_obj, ensure_ascii=False) + "\n")
+
 def main():
     time_start = time.time()
 
     # Load documents
+    # Previous output [[text], [text], ...]
+    # Now output [[doc_id, text], [doc_id, text], ...]
+    # TODO: modify all the build function inside model.
     docs = load_collection("data/collection.jsonl")
     
+
+    # ----------------------- Test single model -----------------------
     # Build retriever for BM25
     # time_build_retriever = time.time()
     # print("Start to build doc index!")
@@ -93,23 +162,42 @@ def main():
 
     # print("Answer:", answer)
 
-    # Track the doc
-    # print("\nTop contexts (scores):")
-    # for i, (doc, score) in enumerate(doc, 1):
-    #     processed_doc = doc[:160].replace('\\n', ' ')
-    #     print(f"{i}. {score:.4f} | {processed_doc}...")
+    # ----------------------------- End of test -----------------------------
     
-    # -------------------------- Initialization --------------------------
+    
+    # -------------------------- Test combine model --------------------------
+    # retriever_e5 = DenseRetriever(model_name="intfloat/e5-base-v2")
+    
+    # print("Start to build doc index e5!")
+    # retriever_e5.build_index(docs)
+    # print(f"Time spent in e5: {time.time() - time_start:.2f} s")
+
+    # retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-0.6B")
+    # generator = RAGGenerator(model_name="Qwen/Qwen2.5-0.5B-Instruct", max_new_tokens=128, temperature=0.0)
+
+    # question = "Who wrote The Old Man and the Sea?"
+    # answer, docs = rag_answer_dual(question, retriever_e5, retriever_qwen, generator, top_k=5)
+    # print("Answer:", answer)
+
+    # print(f"Total time spent: {time.time() - time_start:.2f} s")
+    # ----------------------------- End of test -----------------------------
+
+
+    # ------------------------ Output jsonl file ------------------------
     retriever_e5 = DenseRetriever(model_name="intfloat/e5-base-v2")
+    
+    print("Start to build doc index e5!")
+    retriever_e5.build_index(docs)
+    print(f"Time spent in e5: {time.time() - time_start:.2f} s")
+
     retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-0.6B")
     generator = RAGGenerator(model_name="Qwen/Qwen2.5-0.5B-Instruct", max_new_tokens=128, temperature=0.0)
-
-    # Read in json file
-    question = ?
-    answer, docs = rag_answer_dual(question, retriever_e5, retriever_qwen, generator, top_k=5)
-    
-    # This should be json file
-    answer = ?
+    write_rag_answers("data/validation.jsonl", 
+                      "data/rag_answer.jsonl", 
+                      retriever_e5, 
+                      retriever_qwen, 
+                      generator
+                      )
     
     print(f"Total time spent: {time.time() - time_start:.2f} s")
 

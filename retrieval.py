@@ -5,7 +5,7 @@ import numpy as np
 import nltk
 import faiss
 import torch
-from typing import List
+from typing import List, Tuple
 
 
 # =====================================
@@ -124,7 +124,7 @@ class DenseRetriever:
         Adds 'passage:' prefix for E5.
         """
         self.documents = documents
-        prefixed_docs = [f"passage: {doc}" for doc in documents]
+        prefixed_docs = [f"passage: {doc['text']}" for doc in documents]
 
         self.embeddings = self.model.encode(
             prefixed_docs,
@@ -157,13 +157,17 @@ class DenseRetriever:
             device=self.device
         )
         scores, indices = self.index.search(query_emb, top_k)
-        results = [(self.documents[i], float(scores[0][j])) for j, i in enumerate(indices[0])]
+        
+        results = []
+        for j, i in enumerate(indices[0]):
+            doc = self.documents[i]   # dict: {"id":..., "text":...}
+            results.append((doc, float(scores[0][j])))
         return results
 
 
 # =====================================
 # Dense Retriever Module with instruction
-# Model: E5-Mistral
+# Model: Qwen3-Embedding-0.6B
 # =====================================
 
 class DenseRetrieverIns:
@@ -225,7 +229,7 @@ class DenseRetrieverIns:
         ).astype("float32")[0]
 
         # Encode candidate docs
-        docs = [doc for doc, _ in candidates]
+        docs = [doc["text"] for doc, _ in candidates]
         doc_embs = self.model.encode(
             docs,
             show_progress_bar=self.show_progress_bar,
@@ -235,7 +239,11 @@ class DenseRetrieverIns:
 
         # Cosine similarity
         scores = np.dot(doc_embs, query_emb)  # since embeddings are normalized
-        reranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+        reranked = sorted(
+            [(candidates[i][0], float(scores[i])) for i in range(len(candidates))],
+            key=lambda x: x[1],
+            reverse=True
+        )
 
         return reranked
 
