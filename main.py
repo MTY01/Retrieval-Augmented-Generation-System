@@ -1,5 +1,5 @@
 from dataset_loader import load_collection
-from retrieval import DenseRetriever
+from retrieval import SparseRetriever, StaticRetriever, DenseRetriever
 from generation import RAGGenerator
 
 import time
@@ -19,16 +19,36 @@ def main():
 
     # Load documents
     docs = load_collection("data/collection.jsonl")
+    
+    # Build retriever for BM25
+    # time_build_retriever = time.time()
+    # print("Start to build doc index!")
+    # retriever = SparseRetriever(docs)
+    # print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
+    
+    # Build retriever for model2vec
+    # retriever = StaticRetriever(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    # print("Start to build doc index!")
+    # time_build_retriever = time.time()
+    # retriever.build_index(docs, batch_size=64)
+    # print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
 
-    # Build retriever
-    retriever = DenseRetriever(model_name="BAAI/bge-m3")
-
+    # Build retriever for E5
+    retriever = DenseRetriever(model_name="intfloat/e5-base-v2")
     time_build_retriever = time.time()
     print("Start to build doc index!")
-
     retriever.build_index(docs)
-
     print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
+
+    # Build retriever for ?
+    # retriever = DenseRetrieverIns(model_name="")
+    # time_build_retriever = time.time()
+    # print("Start to build doc index!")
+    # retriever.build_index(docs)
+    # print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
+
+    # Build retriever for ColBERT
+    # TODO
 
     # Initialize generator
     generator = RAGGenerator(model_name="Qwen/Qwen2.5-0.5B-Instruct", max_new_tokens=128, temperature=0.0)

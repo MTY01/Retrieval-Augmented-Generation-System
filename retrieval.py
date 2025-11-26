@@ -1,66 +1,21 @@
 from sentence_transformers import SentenceTransformer
 from sklearn.neighbors import NearestNeighbors
 from rank_bm25 import BM25Plus
+import numpy as np
 import nltk
-# import faiss
+import faiss
 import torch
-
-
-# =====================================
-# Dense Retriever Module
-# Model: BGE-m3
-# =====================================
-
-class DenseRetriever:
-    def __init__(self, model_name="BAAI/bge-m3"):
-        """
-        Initialize the retriever with a BGE-m3 model.
-        """
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = SentenceTransformer(model_name, device=self.device)
-        self.index = None
-        self.documents = None
-        self.embeddings = None
-
-    def build_index(self, documents):
-        """
-        Build FAISS index from documents.
-        """
-        self.documents = documents
-        self.embeddings = self.model.encode(
-            documents, 
-            batch_size=256, 
-            convert_to_numpy=True, 
-            normalize_embeddings=True, 
-            device=self.device)
-        dim = self.embeddings.shape[1]
-
-        # Inner product index (cosine similarity if normalized)
-        self.index = faiss.IndexFlatIP(dim)
-        self.index.add(self.embeddings)
-
-    def retrieve(self, query, top_k=10):
-        """
-        Retrieve top-k documents for a query.
-        Returns list of (doc, score).
-        """
-        query_emb = self.model.encode(
-            [query], 
-            convert_to_numpy=True, 
-            normalize_embeddings=True, 
-            device=self.device)
-        distances, indices = self.index.search(query_emb, n_neighbors=top_k)
-        results = [(self.documents[i], 1 - float(distances[0][j])) for j, i in enumerate(indices[0])]
-        return results
+from typing import List
 
 
 # =====================================
 # Sparse Retriever Module
-# Model: BM25
+# Model: BM25Plus
 # =====================================
 
 # First time you have to download this
 # nltk.download("punkt")
+# nltk.download("punkt_tab")
 
 class SparseRetriever:
     def __init__(self, documents):
@@ -85,3 +40,139 @@ class SparseRetriever:
         return results
 
 
+# =====================================
+# Static Embedding Retrieval
+# Model: model2vec
+# =====================================
+
+class StaticRetriever:
+    def __init__(self, model_name="sentence-transformers/all-MiniLM-L6-v2", use_gpu=True):
+        """
+        Static retriever using SentenceTransformer (Model2Vec) + FAISS.
+        Embeddings are precomputed once and reused.
+        """
+        device = "cuda" if use_gpu else "cpu"
+        self.model = SentenceTransformer(model_name, device=device)
+
+        self.index = None
+        self.documents = None
+        self.embeddings = None
+        self.use_gpu = use_gpu
+
+    def build_index(self, documents, batch_size=64):
+        """
+        Build FAISS index from documents.
+        """
+        self.documents = documents
+        self.embeddings = self.model.encode(
+            documents,
+            batch_size=batch_size,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=True
+        )
+
+        faiss.normalize_L2(self.embeddings)
+        dim = self.embeddings.shape[1]
+
+        cpu_index = faiss.IndexFlatIP(dim)
+        if self.use_gpu:
+            res = faiss.StandardGpuResources()
+            self.index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
+        else:
+            self.index = cpu_index
+
+        self.index.add(self.embeddings)
+
+    def retrieve(self, query, top_k=10):
+        """
+        Retrieve top-k documents for a query.
+        """
+        query_emb = self.model.encode(
+            [query],
+            convert_to_numpy=True,
+            normalize_embeddings=True
+        )
+        faiss.normalize_L2(query_emb)
+
+        scores, indices = self.index.search(query_emb, top_k)
+        results = [(self.documents[i], float(scores[0][j])) for j, i in enumerate(indices[0])]
+        return results
+
+
+# =====================================
+# Dense Retriever Module
+# Model: E5-base-v2
+# =====================================
+
+class StaticRetriever:
+    def __init__(self, model_name="intfloat/e5-base-v2", use_gpu=True):
+        """
+        Dense retriever using SentenceTransformer + FAISS (E5-base-v2).
+        """
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Device: {self.device}")
+        self.model = SentenceTransformer(model_name, device=str(self.device))
+        self.index = None
+        self.documents = None
+        self.embeddings = None
+        self.use_gpu = use_gpu
+
+    def build_index(self, documents, batch_size=512):
+        """
+        Build FAISS index from documents with batch encoding.
+        Adds 'passage:' prefix for E5.
+        """
+        self.documents = documents
+        prefixed_docs = [f"passage: {doc}" for doc in documents]
+
+        self.embeddings = self.model.encode(
+            prefixed_docs,
+            batch_size=batch_size,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            device=self.device,
+            show_progress_bar=True
+        )
+        dim = self.embeddings.shape[1]
+        cpu_index = faiss.IndexFlatIP(dim)
+
+        # Inner product index (cosine similarity if normalized)
+        if self.use_gpu and torch.cuda.is_available():
+            res = faiss.StandardGpuResources()
+            self.index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
+        else:
+            self.index = cpu_index
+        self.index.add(self.embeddings)
+
+    def retrieve(self, query, top_k=10):
+        """
+        Retrieve top-k documents for a query.
+        Adds 'query:' prefix for E5.
+        """
+        query_emb = self.model.encode(
+            [f"query: {query}"],
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            device=self.device
+        )
+        scores, indices = self.index.search(query_emb, top_k)
+        results = [(self.documents[i], float(scores[0][j])) for j, i in enumerate(indices[0])]
+        return results
+
+
+# =====================================
+# Dense Retriever Module with instruction
+# Model: E5-Mistral
+# =====================================
+
+# class DenseRetrieverIns:
+    
+
+
+# =====================================
+# Dense Multi-vector Retrieval
+# Model: 
+# =====================================
+
+# class MultiVectorRetrieval:
