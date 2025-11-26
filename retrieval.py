@@ -1,4 +1,4 @@
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, util
 from sklearn.neighbors import NearestNeighbors
 from rank_bm25 import BM25Plus
 import numpy as np
@@ -105,7 +105,7 @@ class StaticRetriever:
 # Model: E5-base-v2
 # =====================================
 
-class StaticRetriever:
+class DenseRetriever:
     def __init__(self, model_name="intfloat/e5-base-v2", use_gpu=True):
         """
         Dense retriever using SentenceTransformer + FAISS (E5-base-v2).
@@ -166,8 +166,78 @@ class StaticRetriever:
 # Model: E5-Mistral
 # =====================================
 
-# class DenseRetrieverIns:
+class DenseRetrieverIns:
+    def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-0.6B", 
+                 show_progress_bar: bool = True, use_gpu: bool = True, 
+                 use_fp16: bool = True):
+        device = "cuda" if use_gpu else "cpu"
+        dtype = torch.float16 if use_fp16 else torch.float32
+        
+        self.show_progress_bar = show_progress_bar
+        self.use_gpu = use_gpu
+        self.model = SentenceTransformer(model_name, device=device, model_kwargs={"torch_dtype": dtype})
+        self.index = None
+        self.documents = []
+
+    def build_index(self, docs: List[str]):
+        self.documents = docs
+        embeddings = self.model.encode(
+            docs,
+            show_progress_bar=self.show_progress_bar,
+            convert_to_numpy=True,
+            normalize_embeddings=True
+        ).astype("float32")
+
+        dim = embeddings.shape[1]
+        cpu_index = faiss.IndexFlatL2(dim)
+
+        if self.use_gpu:
+            res = faiss.StandardGpuResources()
+            self.index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
+        else:
+            self.index = cpu_index
+
+        self.index.add(embeddings)
+
+    def retrieve(self, query: str, top_k: int = 10):
+        query_emb = self.model.encode(
+            [query],
+            show_progress_bar=self.show_progress_bar,
+            convert_to_numpy=True,
+            normalize_embeddings=True
+        ).astype("float32")
+
+        scores, indices = self.index.search(query_emb, top_k)
+        return [(self.documents[i], float(scores[0][j])) for j, i in enumerate(indices[0])]
     
+    def rerank(self, query: str, candidates: List[Tuple[str, float]]):
+        """
+        Rerank a candidate set of documents using Qwen embeddings.
+        candidates: List of (doc, score_from_other_retriever)
+        Returns: List of (doc, rerank_score) sorted by rerank_score desc
+        """
+        # Encode query
+        query_emb = self.model.encode(
+            [query],
+            show_progress_bar=self.show_progress_bar,
+            convert_to_numpy=True,
+            normalize_embeddings=True
+        ).astype("float32")[0]
+
+        # Encode candidate docs
+        docs = [doc for doc, _ in candidates]
+        doc_embs = self.model.encode(
+            docs,
+            show_progress_bar=self.show_progress_bar,
+            convert_to_numpy=True,
+            normalize_embeddings=True
+        ).astype("float32")
+
+        # Cosine similarity
+        scores = np.dot(doc_embs, query_emb)  # since embeddings are normalized
+        reranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+
+        return reranked
 
 
 # =====================================
