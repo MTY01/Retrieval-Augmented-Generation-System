@@ -58,21 +58,15 @@ def rag_answer_dual(
 def write_rag_answers(
     input_path: str,
     output_path: str,
-    retriever_e5,
-    retriever_qwen,
+    retriever,
     generator,
     top_k: int = 10,
-    candidate_k: int = 20
 ):
     """
     Generate RAG answers for a dataset split and write to JSONL.
-    - input_path: train/validation/test split file (jsonl)
-    - output_path: output jsonl file
-    - retriever_e5: E5 retriever (for initial recall)
-    - retriever_qwen: Qwen3 retriever (for rerank)
+    - retriever: Qwen3 retriever (既负责召回也负责 rerank)
     - generator: RAGGenerator
     - top_k: number of final docs used for answer generation
-    - candidate_k: number of docs recalled by E5 before rerank
     """
 
     examples = load_split(input_path)
@@ -82,22 +76,15 @@ def write_rag_answers(
             qid = ex["id"]
             query = ex["text"]
 
-            # Step 1: E5 initial recall
-            candidates = retriever_e5.retrieve(query, top_k=candidate_k)
+            candidates = retriever.retrieve(query, top_k=top_k)
 
-            # Step 2: Qwen rerank
-            reranked = retriever_qwen.rerank(query, candidates)
+            contexts = [doc["text"] for doc, _ in candidates]
 
-            # Step 3: Select top_k docs
-            top_docs = [doc["text"] for doc, _ in reranked[:top_k]]
+            answer = generator.generate(query, contexts)
 
-            # Step 4: Generate answer
-            answer = generator.generate(query, top_docs)
+            supporting_ids = [[doc["id"], score] for doc, score in candidates]
 
-            # Step 5: supporting_ids = 前两个文档的 id
-            supporting_ids = [[doc["id"], score] for doc, score in reranked[:10]]
-
-            # Step 6: 写入 JSONL
+            # Step 5: 写入 JSONL
             out_obj = {
                 "id": qid,
                 "text": query,
@@ -184,17 +171,24 @@ def main():
 
 
     # ------------------------ Output jsonl file ------------------------
-    retriever_e5 = DenseRetriever(model_name="intfloat/e5-large-v2")
     
-    print("Start to build doc index e5!")
-    retriever_e5.build_index(docs)
-    print(f"Time spent in e5: {time.time() - time_start:.2f} s")
+    input_file = "data/validation.jsonl"
+    output_file = "data/rag_answer.jsonl"
+
+    mode = 0
+    if mode:
+        docs = load_collection("data/tiny_collection.jsonl")
+        input_file = "data/tiny_validation.jsonl"
+        output_file = "data/tiny_rag_answer.jsonl"
 
     retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-0.6B")
-    generator = RAGGenerator(model_name="Qwen/Qwen2.5-0.5B-Instruct", max_new_tokens=128, temperature=0.0)
-    write_rag_answers("data/validation.jsonl", 
-                      "data/rag_answer.jsonl", 
-                      retriever_e5, 
+    print("Start to build doc index Qwen3!")
+    retriever_qwen.build_index(docs)
+    print(f"Time spent in Qwen3 index build: {time.time() - time_start:.2f} s")
+
+    generator = RAGGenerator(model_name="Qwen/Qwen2.5-1.5B-Instruct", max_new_tokens=128, temperature=0.0)
+    write_rag_answers(input_file, 
+                      output_file, 
                       retriever_qwen, 
                       generator
                       )
@@ -203,3 +197,35 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# eval_retrieval.py
+# {
+#   "map_at_2": 0.5153333333333333,
+#   "map_at_5": 0.6193166666666666,
+#   "map_at_10": 0.6369358465608466,
+#   "ndcg_at_2": 0.5913414830741336,
+#   "ndcg_at_5": 0.7071959694045842,
+#   "ndcg_at_10": 0.7347611783104457,
+#   "recall_at_2": 0.5476666666666666,
+#   "recall_at_5": 0.754,
+#   "recall_at_10": 0.823,
+#   "precision_at_2": 0.5476666666666666,
+#   "precision_at_5": 0.3016,
+#   "precision_at_10": 0.1646
+# }
+
+# eval_hotpotqa.py
+# {
+#   "em": 0.14333333333333334,
+#   "f1": 0.20776486412819511,
+#   "prec": 0.19955357567500887,
+#   "recall": 0.2693722222222224,
+#   "sp_em": 0.0,
+#   "sp_f1": 0.42990476190475907,
+#   "sp_prec": 0.30093333333332617,
+#   "sp_recall": 0.7523333333333333,
+#   "joint_em": 0.0,
+#   "joint_f1": 0.09684338244528023,
+#   "joint_prec": 0.06673463842670826,
+#   "joint_recall": 0.2290674603174603
+# }

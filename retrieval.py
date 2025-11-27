@@ -124,7 +124,7 @@ class DenseRetriever:
         Adds 'passage:' prefix for E5.
         """
         self.documents = documents
-        prefixed_docs = [f"passage: {doc['text']}" for doc in documents]
+        prefixed_docs = [f"{doc['text']}" for doc in documents]
 
         self.embeddings = self.model.encode(
             prefixed_docs,
@@ -173,46 +173,64 @@ class DenseRetriever:
 class DenseRetrieverIns:
     def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-0.6B", 
                  show_progress_bar: bool = True, use_gpu: bool = True, 
-                 use_fp16: bool = False):
-        device = "cuda" if use_gpu else "cpu"
+                 use_fp16: bool = True):
+        device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
         dtype = torch.float16 if use_fp16 else torch.float32
         
         self.show_progress_bar = show_progress_bar
         self.use_gpu = use_gpu
         self.model = SentenceTransformer(model_name, device=device, model_kwargs={"torch_dtype": dtype})
         self.index = None
-        self.documents = []
+        self.documents = None
+        self.embeddings = None
 
-    def build_index(self, docs: List[str]):
-        self.documents = docs
-        embeddings = self.model.encode(
-            docs,
+    def build_index(self, documents, batch_size=64):
+        """
+        Build FAISS index from documents with batch encoding.
+        Adds 'passage:' prefix for Qwen.
+        documents: List[{"id":..., "text":...}]
+        """
+        self.documents = documents
+        prefixed_docs = [f"{doc['text']}" for doc in documents]
+
+        self.embeddings = self.model.encode(
+            prefixed_docs,
+            batch_size=batch_size,
             show_progress_bar=self.show_progress_bar,
             convert_to_numpy=True,
             normalize_embeddings=True
         ).astype("float32")
 
-        dim = embeddings.shape[1]
-        cpu_index = faiss.IndexFlatL2(dim)
+        dim = self.embeddings.shape[1]
+        cpu_index = faiss.IndexFlatIP(dim)
 
-        if self.use_gpu:
+        if self.use_gpu and torch.cuda.is_available():
             res = faiss.StandardGpuResources()
             self.index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
         else:
             self.index = cpu_index
 
-        self.index.add(embeddings)
+        self.index.add(self.embeddings)
 
     def retrieve(self, query: str, top_k: int = 10):
+        """
+        Retrieve top-k documents for a query.
+        Adds 'query:' prefix for Qwen.
+        """
         query_emb = self.model.encode(
-            [query],
+            [f"query: {query}"],
             show_progress_bar=self.show_progress_bar,
             convert_to_numpy=True,
             normalize_embeddings=True
         ).astype("float32")
 
         scores, indices = self.index.search(query_emb, top_k)
-        return [(self.documents[i], float(scores[0][j])) for j, i in enumerate(indices[0])]
+
+        results = []
+        for j, i in enumerate(indices[0]):
+            doc = self.documents[i]   # dict: {"id":..., "text":...}
+            results.append((doc, float(scores[0][j])))
+        return results
     
     def rerank(self, query: str, candidates: List[Tuple[str, float]]):
         """
