@@ -21,10 +21,11 @@ class SparseRetriever:
     def __init__(self, documents):
         """
         Initialize BM25 retriever with a list of documents.
+        Each document is a dict: {"id": str, "text": str}.
         """
         self.documents = documents
-        # Tokenize each document into words
-        self.tokenized_docs = [nltk.word_tokenize(doc.lower()) for doc in documents]
+        # Tokenize each document's text
+        self.tokenized_docs = [nltk.word_tokenize(doc["text"].lower()) for doc in documents]
         self.bm25 = BM25Plus(self.tokenized_docs)
 
     def retrieve(self, query, top_k=10):
@@ -34,9 +35,14 @@ class SparseRetriever:
         """
         tokenized_query = nltk.word_tokenize(query.lower())
         scores = self.bm25.get_scores(tokenized_query)
+
         # Sort by score descending
         top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
-        results = [(self.documents[i], float(scores[i])) for i in top_indices]
+
+        results = []
+        for i in top_indices:
+            doc = self.documents[i]   # dict: {"id":..., "text":...}
+            results.append((doc, float(scores[i])))
         return results
 
 
@@ -118,7 +124,7 @@ class DenseRetriever:
         self.embeddings = None
         self.use_gpu = use_gpu
 
-    def build_index(self, documents, batch_size=256):
+    def build_index(self, documents, batch_size=512):
         """
         Build FAISS index from documents with batch encoding.
         Adds 'passage:' prefix for E5.
@@ -173,7 +179,7 @@ class DenseRetriever:
 class DenseRetrieverIns:
     def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-0.6B", 
                  show_progress_bar: bool = True, use_gpu: bool = True, 
-                 use_fp16: bool = False):
+                 use_fp16: bool = True):
         device = "cuda" if use_gpu else "cpu"
         dtype = torch.float16 if use_fp16 else torch.float32
         
