@@ -11,22 +11,22 @@ class RAGGenerator:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
+            load_in_8bit=True,
             dtype=torch.float16 if self.device == "cuda" else torch.float32,
             device_map="auto" if self.device == "cuda" else None,
         )
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
 
-    def _format_context(self, contexts: List[str], max_chars: int = 4000) -> str:
-
-        # Simple concatenation with truncation to keep prompt size manageable
+    def _format_context(self, contexts: List[str], max_tokens: int = 4000) -> str:
         joined = "\n\n".join(contexts)
-        return joined[:max_chars]
+        tokens = self.tokenizer(joined, truncation=True, max_length=max_tokens)
+        return self.tokenizer.decode(tokens["input_ids"], skip_special_tokens=True)
 
     def build_prompt(self, question: str, contexts: List[str]) -> List[dict]:
 
         # Chat template messages; transformers will apply chat formatting for Qwen
-        system_msg = "You are a helpful assistant. Answer strictly using the provided context. If the answer is not in the context, say “I don't know.” Provide a concise answer."
+        system_msg = "You are a helpful assistant. Answer strictly using the provided context in few words. If the answer is not in the context, say 'I don't know.'"
         context_block = self._format_context(contexts)
         user_msg = f"Question:\n{question}\n\nContext:\n{context_block}"
         return [
@@ -47,7 +47,7 @@ class RAGGenerator:
                 temperature=self.temperature if self.temperature > 0.0 else None,
                 top_k=50 if self.temperature > 0.0 else None,
                 top_p=0.9 if self.temperature > 0.0 else None,
-                repetition_penalty=1.05,
+                repetition_penalty=1.1,
                 pad_token_id=self.tokenizer.eos_token_id,
             )
         text = self.tokenizer.decode(outputs[0][input_ids.shape[-1]:], skip_special_tokens=True)

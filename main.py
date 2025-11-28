@@ -61,8 +61,8 @@ def write_rag_answers(
     retriever_e5,
     retriever_qwen,
     generator,
-    top_k: int = 10,
-    candidate_k: int = 20
+    top_k: int = 5,
+    candidate_k: int = 50
 ):
     """
     Generate RAG answers for a dataset split and write to JSONL.
@@ -94,10 +94,10 @@ def write_rag_answers(
             # Step 4: Generate answer
             answer = generator.generate(query, top_docs)
 
-            # Step 5: supporting_ids = 前两个文档的 id
+            # Step 5: supporting_ids = first 10 id
             supporting_ids = [[doc["id"], score] for doc, score in reranked[:10]]
 
-            # Step 6: 写入 JSONL
+            # Step 6: Write JSONL
             out_obj = {
                 "id": qid,
                 "text": query,
@@ -184,14 +184,15 @@ def main():
 
 
     # ------------------------ Output jsonl file ------------------------
+    # docs = load_collection("data/tiny_collection.jsonl")
     retriever_e5 = DenseRetriever(model_name="intfloat/e5-large-v2")
     
     print("Start to build doc index e5!")
     retriever_e5.build_index(docs)
     print(f"Time spent in e5: {time.time() - time_start:.2f} s")
 
-    retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-0.6B")
-    generator = RAGGenerator(model_name="Qwen/Qwen2.5-0.5B-Instruct", max_new_tokens=128, temperature=0.0)
+    retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-4B")
+    generator = RAGGenerator(model_name="Qwen/Qwen2.5-3B-Instruct", max_new_tokens=128, temperature=0.0)
     write_rag_answers("data/validation.jsonl", 
                       "data/rag_answer.jsonl", 
                       retriever_e5, 
@@ -203,3 +204,35 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# eval_retrieval.py
+# {
+#   "map_at_2": 0.552,
+#   "map_at_5": 0.6704055555555556,
+#   "map_at_10": 0.6919238095238094,
+#   "ndcg_at_2": 0.6266158664801237,
+#   "ndcg_at_5": 0.7542217637174936,
+#   "ndcg_at_10": 0.7876044429284017,
+#   "recall_at_2": 0.5903333333333334,
+#   "recall_at_5": 0.8183333333333334,
+#   "recall_at_10": 0.9016666666666666,
+#   "precision_at_2": 0.5903333333333334,
+#   "precision_at_5": 0.3273333333333333,
+#   "precision_at_10": 0.18033333333333335
+# }
+
+# eval_hotpotqa.py
+# {
+#   "em": 0.366,
+#   "f1": 0.4653739647244111,
+#   "prec": 0.47359432243720057,
+#   "recall": 0.5114029581529582,
+#   "sp_em": 0.0,
+#   "sp_f1": 0.46799999999999614,
+#   "sp_prec": 0.3275999999999917,
+#   "sp_recall": 0.819,
+#   "joint_em": 0.0,
+#   "joint_f1": 0.23560524173862615,
+#   "joint_prec": 0.16789462689177898,
+#   "joint_recall": 0.4551616883116881
+# }

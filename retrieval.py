@@ -118,13 +118,13 @@ class DenseRetriever:
         self.embeddings = None
         self.use_gpu = use_gpu
 
-    def build_index(self, documents, batch_size=256):
+    def build_index(self, documents, batch_size=128):
         """
         Build FAISS index from documents with batch encoding.
         Adds 'passage:' prefix for E5.
         """
         self.documents = documents
-        prefixed_docs = [f"passage: {doc['text']}" for doc in documents]
+        prefixed_docs = [f"{doc['text']}" for doc in documents]
 
         self.embeddings = self.model.encode(
             prefixed_docs,
@@ -173,7 +173,7 @@ class DenseRetriever:
 class DenseRetrieverIns:
     def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-0.6B", 
                  show_progress_bar: bool = True, use_gpu: bool = True, 
-                 use_fp16: bool = False):
+                 use_fp16: bool = True):
         device = "cuda" if use_gpu else "cpu"
         dtype = torch.float16 if use_fp16 else torch.float32
         
