@@ -251,7 +251,7 @@ class DenseRetrieverIns:
 
 # =====================================
 # Dense Multi-vector Retrieval
-# Model: 
+# Model: colbert
 # =====================================
 
 class MultiVectorRetrieval:
