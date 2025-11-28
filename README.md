@@ -41,6 +41,11 @@ This project is designed to run on **WSL2 Ubuntu Linux** with a **GPU (24GB VRAM
 1. **Install Conda** (if not already installed)  
    Follow the [Miniconda installation guide](https://docs.conda.io/en/latest/miniconda.html).
 
+2. Make sure your system has **CUDA Toolkit 11.8** installed and available in PATH:  
+   ```bash
+   nvcc --version   # should show release 11.8
+   ```
+
 2. **Create Environment from `environment.yml`**
    ```bash
    conda env create -f environment.yml
