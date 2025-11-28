@@ -193,8 +193,8 @@ def main():
 
     retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-4B")
     generator = RAGGenerator(model_name="Qwen/Qwen2.5-3B-Instruct", max_new_tokens=128, temperature=0.0)
-    write_rag_answers("data/validation.jsonl", 
-                      "data/rag_answer.jsonl", 
+    write_rag_answers("data/test.jsonl", 
+                      "data/test_predict.jsonl", 
                       retriever_e5, 
                       retriever_qwen, 
                       generator
