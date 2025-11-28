@@ -26,7 +26,7 @@ class RAGGenerator:
     def build_prompt(self, question: str, contexts: List[str]) -> List[dict]:
 
         # Chat template messages; transformers will apply chat formatting for Qwen
-        system_msg = "You are a helpful assistant. Answer strictly using the provided context in few words. If the answer is not in the context, say 'I don't know.'"
+        system_msg = "You are a helpful assistant. Answer strictly using the provided context in few words."
         context_block = self._format_context(contexts)
         user_msg = f"Question:\n{question}\n\nContext:\n{context_block}"
         return [
