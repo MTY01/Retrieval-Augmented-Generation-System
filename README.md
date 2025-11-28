@@ -18,7 +18,7 @@ It leverages a knowledge base to answer multiple questions in batch mode, produc
   ```
 
 - **Output Answers (`data/test_predict.jsonl`)**
-  ```json
+  ```text
   {
     "id": "<str>",
     "question": "<str>",
