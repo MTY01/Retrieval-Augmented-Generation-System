@@ -186,7 +186,7 @@ def main():
     retriever_qwen.build_index(docs)
     print(f"Time spent in Qwen3 index build: {time.time() - time_start:.2f} s")
 
-    generator = RAGGenerator(model_name="Qwen/Qwen2.5-1.5B-Instruct", max_new_tokens=128, temperature=0.0)
+    generator = RAGGenerator(model_name="Qwen/Qwen2.5-3B-Instruct", max_new_tokens=128, temperature=0.0)
     write_rag_answers(input_file, 
                       output_file, 
                       retriever_qwen, 
@@ -214,7 +214,7 @@ if __name__ == "__main__":
 #   "precision_at_10": 0.1646
 # }
 
-# eval_hotpotqa.py
+# # eval_hotpotqa.py
 # {
 #   "em": 0.14333333333333334,
 #   "f1": 0.20776486412819511,
@@ -228,4 +228,19 @@ if __name__ == "__main__":
 #   "joint_f1": 0.09684338244528023,
 #   "joint_prec": 0.06673463842670826,
 #   "joint_recall": 0.2290674603174603
+# }
+# # New
+# {
+#   "em": 0.32866666666666666,
+#   "f1": 0.42896923090344863,
+#   "prec": 0.4368431004077861,
+#   "recall": 0.4775508713508714,
+#   "sp_em": 0.0,
+#   "sp_f1": 0.42990476190475907,
+#   "sp_prec": 0.30093333333332617,
+#   "sp_recall": 0.7523333333333333,
+#   "joint_em": 0.0,
+#   "joint_f1": 0.20306789333963282,
+#   "joint_prec": 0.14496353398087233,
+#   "joint_recall": 0.39955281662781666
 # }

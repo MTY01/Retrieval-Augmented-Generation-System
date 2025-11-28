@@ -11,17 +11,17 @@ class RAGGenerator:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
+            load_in_8bit=True,
             dtype=torch.float16 if self.device == "cuda" else torch.float32,
             device_map="auto" if self.device == "cuda" else None,
         )
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
 
-    def _format_context(self, contexts: List[str], max_chars: int = 4000) -> str:
-
-        # Simple concatenation with truncation to keep prompt size manageable
+    def _format_context(self, contexts: List[str], max_tokens: int = 4000) -> str:
         joined = "\n\n".join(contexts)
-        return joined[:max_chars]
+        tokens = self.tokenizer(joined, truncation=True, max_length=max_tokens)
+        return self.tokenizer.decode(tokens["input_ids"], skip_special_tokens=True)
 
     def build_prompt(self, question: str, contexts: List[str]) -> List[dict]:
 
