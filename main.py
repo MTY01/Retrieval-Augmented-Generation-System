@@ -125,9 +125,7 @@ def main():
     time_start = time.time()
 
     # Load documents
-    # Previous output [[text], [text], ...]
-    # Now output [[doc_id, text], [doc_id, text], ...]
-    # TODO: modify all the build function inside model.
+    # Output [[doc_id, text], [doc_id, text], ...]
     docs = load_collection("data/collection.jsonl")
     
 
@@ -161,26 +159,26 @@ def main():
 
     # Build retriever for ColBERT
     # docs = load_collection("data/tiny_collection.jsonl")
-    retriever = MultiVectorRetrieval(model_name="colbert-ir/colbertv2.0", use_gpu=True)
-    time_build_retriever = time.time()
-    print("Start to build doc index!")
-    retriever.build_index(docs)
-    print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
+    # retriever = MultiVectorRetrieval(model_name="colbert-ir/colbertv2.0", use_gpu=True)
+    # time_build_retriever = time.time()
+    # print("Start to build doc index!")
+    # retriever.build_index(docs)
+    # print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
 
-    # Initialize generator
-    generator = RAGGenerator(model_name="Qwen/Qwen2.5-0.5B-Instruct", max_new_tokens=128, temperature=0.0)
+    # # Initialize generator
+    # generator = RAGGenerator(model_name="Qwen/Qwen2.5-0.5B-Instruct", max_new_tokens=128, temperature=0.0)
 
-    # Single-turn example
-    question = "Who wrote The Old Man and the Sea?"
+    # # Single-turn example
+    # question = "Who wrote The Old Man and the Sea?"
 
-    time_generate_answer = time.time()
-    print("Start to generate answer!")
+    # time_generate_answer = time.time()
+    # print("Start to generate answer!")
 
-    answer, doc = rag_answer(question, retriever, generator, top_k=5)
+    # answer, doc = rag_answer(question, retriever, generator, top_k=5)
 
-    print(f"Time spent in generator: {time.time() - time_generate_answer:.2f} s")
+    # print(f"Time spent in generator: {time.time() - time_generate_answer:.2f} s")
 
-    print("Answer:", answer)
+    # print("Answer:", answer)
 
     # ----------------------------- End of test -----------------------------
     
@@ -204,23 +202,23 @@ def main():
 
 
     # ------------------------ Output jsonl file ------------------------
-    # docs = load_collection("data/tiny_collection.jsonl")
-    # retriever_e5 = DenseRetriever(model_name="intfloat/e5-large-v2")
+    docs = load_collection("data/tiny_collection.jsonl")
+    retriever_e5 = DenseRetriever(model_name="intfloat/e5-large-v2")
     
-    # print("Start to build doc index e5!")
-    # retriever_e5.build_index(docs)
-    # print(f"Time spent in e5: {time.time() - time_start:.2f} s")
+    print("Start to build doc index e5!")
+    retriever_e5.build_index(docs)
+    print(f"Time spent in e5: {time.time() - time_start:.2f} s")
 
-    # retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-4B")
-    # generator = RAGGenerator(model_name="Qwen/Qwen2.5-3B-Instruct", max_new_tokens=128, temperature=0.0)
-    # write_rag_answers("data/test.jsonl", 
-    #                   "data/test_predict.jsonl", 
-    #                   retriever_e5, 
-    #                   retriever_qwen, 
-    #                   generator
-    #                   )
+    retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-4B")
+    generator = RAGGenerator(model_name="Qwen/Qwen2.5-3B-Instruct", max_new_tokens=128, temperature=0.0)
+    write_rag_answers("data/test.jsonl", 
+                      "data/test_predict.jsonl", 
+                      retriever_e5, 
+                      retriever_qwen, 
+                      generator
+                      )
     
-    # print(f"Total time spent: {time.time() - time_start:.2f} s")
+    print(f"Total time spent: {time.time() - time_start:.2f} s")
 
 if __name__ == "__main__":
     main()
