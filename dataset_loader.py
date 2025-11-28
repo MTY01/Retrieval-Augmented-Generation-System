@@ -16,10 +16,10 @@ def load_collection(path):
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             obj = json.loads(line)
-            # Some datasets may use "text" or "document" as the key
-            text = obj.get("text") or obj.get("document")
-            if text:
-                documents.append(text)
+            doc_id = obj.get("id")
+            text = obj.get("text")
+            if doc_id and text:
+                documents.append({"id": doc_id, "text": text})
     return documents
 
 
