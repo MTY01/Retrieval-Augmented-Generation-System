@@ -9,12 +9,12 @@ It leverages a knowledge base to answer multiple questions in batch mode, produc
 
 - **Knowledge Base (`data/collection.jsonl`)**
   ```json
-  {"id": "<str>", "text": "<str>"}  // document
+  {"id": "<str>", "text": "<str>"}
   ```
 
 - **Input Questions (`data/test.jsonl`)**
   ```json
-  {"id": "<str>", "text": "<str>"}  // question
+  {"id": "<str>", "text": "<str>"}
   ```
 
 - **Output Answers (`data/test_predict.jsonl`)**
