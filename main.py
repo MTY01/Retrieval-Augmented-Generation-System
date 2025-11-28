@@ -1,17 +1,32 @@
 from dataset_loader import load_collection, load_split
-from retrieval import SparseRetriever, StaticRetriever, DenseRetriever, DenseRetrieverIns
+from retrieval import SparseRetriever, StaticRetriever, DenseRetriever, DenseRetrieverIns, MultiVectorRetrieval
 from generation import RAGGenerator
 import json
 import time
 
 
 # This is for testing single model
-def rag_answer(question: str, retriever: DenseRetriever, generator: RAGGenerator, top_k: int = 5):
+def rag_answer(question: str, retriever, generator, top_k: int = 5):
+    """
+    General RAG pipeline:
+    - Pass any retriever (DenseRetriever, ColBERTRetriever, BM25Retriever, etc.)
+    - Collect contexts from retrieved docs
+    - Generate answer with RAGGenerator
+    """
     results = retriever.retrieve(question, top_k=top_k)
-    contexts = [doc for doc, _ in results]
+
+    # Normalize results: always extract doc["text"]
+    contexts = []
+    for doc, score in results:
+        # If retriever returns dict directly, handle gracefully
+        if isinstance(doc, dict) and "text" in doc:
+            contexts.append(doc["text"])
+        else:
+            contexts.append(str(doc))
+
     answer = generator.generate(question, contexts)
 
-    # return docs for inspection/eval
+    # Return both answer and retrieved docs for inspection/eval
     return answer, results
 
 # This is for testing combine model
@@ -145,22 +160,27 @@ def main():
     # print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
 
     # Build retriever for ColBERT
-    # TODO
+    # docs = load_collection("data/tiny_collection.jsonl")
+    retriever = MultiVectorRetrieval(model_name="colbert-ir/colbertv2.0", use_gpu=True)
+    time_build_retriever = time.time()
+    print("Start to build doc index!")
+    retriever.build_index(docs)
+    print(f"Time spent in retriever: {time.time() - time_build_retriever:.2f} s")
 
     # Initialize generator
-    # generator = RAGGenerator(model_name="Qwen/Qwen2.5-0.5B-Instruct", max_new_tokens=128, temperature=0.0)
+    generator = RAGGenerator(model_name="Qwen/Qwen2.5-0.5B-Instruct", max_new_tokens=128, temperature=0.0)
 
-    # # Single-turn example
-    # question = "Who wrote The Old Man and the Sea?"
+    # Single-turn example
+    question = "Who wrote The Old Man and the Sea?"
 
-    # time_generate_answer = time.time()
-    # print("Start to generate answer!")
+    time_generate_answer = time.time()
+    print("Start to generate answer!")
 
-    # answer, doc = rag_answer(question, retriever, generator, top_k=5)
+    answer, doc = rag_answer(question, retriever, generator, top_k=5)
 
-    # print(f"Time spent in generator: {time.time() - time_generate_answer:.2f} s")
+    print(f"Time spent in generator: {time.time() - time_generate_answer:.2f} s")
 
-    # print("Answer:", answer)
+    print("Answer:", answer)
 
     # ----------------------------- End of test -----------------------------
     
@@ -185,22 +205,22 @@ def main():
 
     # ------------------------ Output jsonl file ------------------------
     # docs = load_collection("data/tiny_collection.jsonl")
-    retriever_e5 = DenseRetriever(model_name="intfloat/e5-large-v2")
+    # retriever_e5 = DenseRetriever(model_name="intfloat/e5-large-v2")
     
-    print("Start to build doc index e5!")
-    retriever_e5.build_index(docs)
-    print(f"Time spent in e5: {time.time() - time_start:.2f} s")
+    # print("Start to build doc index e5!")
+    # retriever_e5.build_index(docs)
+    # print(f"Time spent in e5: {time.time() - time_start:.2f} s")
 
-    retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-4B")
-    generator = RAGGenerator(model_name="Qwen/Qwen2.5-3B-Instruct", max_new_tokens=128, temperature=0.0)
-    write_rag_answers("data/test.jsonl", 
-                      "data/test_predict.jsonl", 
-                      retriever_e5, 
-                      retriever_qwen, 
-                      generator
-                      )
+    # retriever_qwen = DenseRetrieverIns(model_name="Qwen/Qwen3-Embedding-4B")
+    # generator = RAGGenerator(model_name="Qwen/Qwen2.5-3B-Instruct", max_new_tokens=128, temperature=0.0)
+    # write_rag_answers("data/test.jsonl", 
+    #                   "data/test_predict.jsonl", 
+    #                   retriever_e5, 
+    #                   retriever_qwen, 
+    #                   generator
+    #                   )
     
-    print(f"Total time spent: {time.time() - time_start:.2f} s")
+    # print(f"Total time spent: {time.time() - time_start:.2f} s")
 
 if __name__ == "__main__":
     main()

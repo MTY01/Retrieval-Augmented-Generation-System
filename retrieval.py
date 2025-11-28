@@ -1,5 +1,6 @@
 from sentence_transformers import SentenceTransformer, util
 from sklearn.neighbors import NearestNeighbors
+from transformers import AutoTokenizer, AutoModel
 from rank_bm25 import BM25Plus
 import numpy as np
 import nltk
@@ -253,4 +254,81 @@ class DenseRetrieverIns:
 # Model: 
 # =====================================
 
-# class MultiVectorRetrieval:
+class MultiVectorRetrieval:
+    def __init__(self, model_name="colbert-ir/colbertv2.0", use_gpu=True):
+        """
+        Multi-vector retriever using ColBERT (token-level embeddings + MaxSim).
+        """
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Device: {self.device}")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name).to(self.device)
+        self.index = None
+        self.documents = None
+        self.doc_embeddings = None
+        self.use_gpu = use_gpu
+
+    def _encode(self, texts, batch_size=16):
+        """
+        Encode texts into multi-vector embeddings (token-level).
+        """
+        all_embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            inputs = self.tokenizer(batch, padding=True, truncation=True, return_tensors="pt").to(self.device)
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                # ColBERT uses contextualized token embeddings (last hidden state)
+                embeddings = outputs.last_hidden_state  # [batch, seq_len, dim]
+                # Normalize each token embedding
+                embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=-1)
+                all_embeddings.append(embeddings)
+        return torch.cat(all_embeddings, dim=0)  # [num_docs, seq_len, dim]
+
+    def build_index(self, documents, batch_size=64):
+        """
+        Build FAISS index for ColBERT multi-vector retrieval.
+        Each document contributes multiple token embeddings.
+        """
+        self.documents = documents
+        texts = [doc["text"] for doc in documents]
+        self.doc_embeddings = self._encode(texts, batch_size=batch_size)
+
+        # Flatten token embeddings for FAISS
+        num_docs, seq_len, dim = self.doc_embeddings.shape
+        flat_embeddings = self.doc_embeddings.view(num_docs * seq_len, dim).detach().cpu().numpy()
+
+        cpu_index = faiss.IndexFlatIP(dim)
+        if self.use_gpu and torch.cuda.is_available():
+            res = faiss.StandardGpuResources()
+            self.index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
+        else:
+            self.index = cpu_index
+
+        self.index.add(flat_embeddings)
+
+    def retrieve(self, query, top_k=10):
+        """
+        Retrieve top-k documents using MaxSim scoring.
+        """
+        query_emb = self._encode([query])  # [1, seq_len, dim]
+        query_emb = query_emb.squeeze(0).detach().cpu().numpy()  # [seq_len, dim]
+
+        # Search each query token against all doc tokens
+        scores, indices = self.index.search(query_emb, top_k)
+
+        # Aggregate scores per document (MaxSim)
+        doc_scores = {}
+        for q_idx, retrieved in enumerate(indices):
+            for j, doc_token_idx in enumerate(retrieved):
+                doc_id = doc_token_idx // self.doc_embeddings.shape[1]  # map back to doc
+                score = scores[q_idx][j]
+                if doc_id not in doc_scores:
+                    doc_scores[doc_id] = score
+                else:
+                    doc_scores[doc_id] = max(doc_scores[doc_id], score)
+
+        # Sort by score
+        ranked = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
+        results = [(self.documents[doc_id], float(score)) for doc_id, score in ranked]
+        return results
