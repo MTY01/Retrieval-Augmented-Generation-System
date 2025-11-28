@@ -14,9 +14,9 @@ from typing import List, Tuple
 # Model: BM25Plus
 # =====================================
 
-# First time you have to download this
-# nltk.download("punkt")
-# nltk.download("punkt_tab")
+# First time you have to run this
+nltk.download("punkt")
+nltk.download("punkt_tab")
 
 class SparseRetriever:
     def __init__(self, documents):
