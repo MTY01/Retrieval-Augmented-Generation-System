@@ -36,7 +36,8 @@ It leverages a knowledge base to answer multiple questions in batch mode, produc
 
 ## ⚙️ Environment Setup
 
-This project is designed to run on **WSL2 Ubuntu Linux** with a **GPU (24GB VRAM)**.
+This project is designed to run on **WSL2 Ubuntu Linux** with a **GPU (24GB VRAM)**.  
+It requires **CUDA Toolkit 11.8** for GPU acceleration.
 
 1. **Install Conda** (if not already installed)  
    Follow the [Miniconda installation guide](https://docs.conda.io/en/latest/miniconda.html).
