@@ -48,7 +48,7 @@ This project is designed to run on **WSL2 Ubuntu Linux** with a **GPU (24GB VRAM
 
 3. **Activate Environment**
    ```bash
-   conda activate rag-env
+   conda activate rag_env
    ```
 
 ---
