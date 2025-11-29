@@ -93,6 +93,14 @@ All generated `.jsonl` files will be saved automatically in the **`data/` folder
    ```
    data/test_predict.jsonl
    ```
+5. Test results in:
+   ```bash
+   python eval_retrieval.py --gold data/validation.jsonl --pred test_predict.jsonl
+   ```
+
+   ```bash
+   python eval_hotpotqa.py --gold data/validation.jsonl --pred test_predict.jsonl
+   ```
 
 ---
 
