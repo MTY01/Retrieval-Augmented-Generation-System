@@ -1,8 +1,15 @@
 # Retrieval-Augmented Generation (RAG) System
 
 This repository implements a **Retrieval-Augmented Generation (RAG)** pipeline.  
-RAG system using E5 + Qwen3-Embedding rerank as hybrid retriever and Qwen2.5-instruct as generator.
+This RAG system using **E5 + Qwen3-Embedding rerank** as hybrid retriever and **Qwen2.5-instruct** as generator.
 It leverages a knowledge base to answer multiple questions in batch mode, producing structured outputs with retrieved document scores.
+
+This system includes **five** retrieval modules in total: 
+- Sparse retrieval (BM25Plus)
+- Static embedding retrieval (model2vec MiniLM-L6)
+- Dense retrieval (e5-large-v2)
+- Dense retrieval with instruction (Qwen3-Embedding)
+- Multi-vector retrieval (colbert)
 
 ---
 
