@@ -101,7 +101,43 @@ All generated `.jsonl` files will be saved automatically in the **`data/` folder
    ```bash
    python eval_hotpotqa.py --gold data/validation.jsonl --pred test_predict.jsonl
    ```
+6. Evaluation results：
 
+   Output by eval_retrieval.py:
+   ```
+   {
+     "map_at_2": 0.552,
+     "map_at_5": 0.6704055555555556,
+     "map_at_10": 0.6919238095238094,
+     "ndcg_at_2": 0.6266158664801237,
+     "ndcg_at_5": 0.7542217637174936,
+     "ndcg_at_10": 0.7876044429284017,
+     "recall_at_2": 0.5903333333333334,
+     "recall_at_5": 0.8183333333333334,
+     "recall_at_10": 0.9016666666666666,
+     "precision_at_2": 0.5903333333333334,
+     "precision_at_5": 0.3273333333333333,
+     "precision_at_10": 0.18033333333333335
+   }
+   ```
+
+   Output by eval_hotpotqa.py:
+   ```
+   {
+     "em": 0.376,
+     "f1": 0.4982857125500713,
+     "prec": 0.5044795222186222,
+     "recall": 0.5535126003626004,
+     "sp_em": 0.0,
+     "sp_f1": 0.46799999999999614,
+     "sp_prec": 0.3275999999999917,
+     "sp_recall": 0.819,
+     "joint_em": 0.0,
+     "joint_f1": 0.24998344259964184,
+     "joint_prec": 0.17755366175041476,
+     "joint_recall": 0.4906165686165683
+   }
+   ```
 ---
 
 ## 🖥️ Notes
