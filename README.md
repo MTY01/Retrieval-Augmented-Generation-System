@@ -1,6 +1,7 @@
 # Retrieval-Augmented Generation (RAG) System
 
 This repository implements a **Retrieval-Augmented Generation (RAG)** pipeline.  
+RAG system using E5 + Qwen3-Embedding rerank as hybrid retriever and Qwen2.5-instruct as generator.
 It leverages a knowledge base to answer multiple questions in batch mode, producing structured outputs with retrieved document scores.
 
 ---
